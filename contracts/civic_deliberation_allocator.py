@@ -172,3 +172,118 @@ def _sortition_tiebreak_key(candidate: dict) -> tuple:
 def _encode_json_compact(value: typing.Any) -> str:
     """Deterministic JSON serialization with sorted keys and minimal whitespace."""
     return json.dumps(value, sort_keys=True, separators=(",", ":"))
+
+
+# ==============================================================================
+# 3. Deterministic Coverage-First Sortition Policy
+# ==============================================================================
+
+def _execute_sortition_algorithm(
+    slot_count: int,
+    testimonies: list[dict],
+    clusters: list[dict],
+) -> list[dict]:
+    """Execute mathematical sortition to maximize viewpoint diversity across clusters.
+
+    Pass 1: Unique cluster coverage (at most 1 delegate per thematic cluster).
+    Pass 2: Cluster depth fill (at most 2 delegates per cluster if slots remain).
+    Pass 3: Assign standardized non-selection reason codes.
+    """
+    # Reset any prior sortition flags
+    for t in testimonies:
+        t["selected"] = False
+        t["selection_rank"] = 0
+        t["reason_code"] = ""
+        t["rationale"] = ""
+
+    cluster_index = {c["cluster_id"]: c for c in clusters}
+    testimonies_by_cluster: dict[int, list[dict]] = {cid: [] for cid in cluster_index}
+
+    for t in testimonies:
+        if t.get("eligible", True) and int(t.get("cluster_id", 0)) > 0:
+            cid = int(t["cluster_id"])
+            if cid in testimonies_by_cluster:
+                testimonies_by_cluster[cid].append(t)
+
+    selected_delegates: list[dict] = []
+    cluster_delegate_tally: dict[int, int] = {cid: 0 for cid in cluster_index}
+
+    # PASS 1: Broadest viewpoint representation across distinct clusters
+    first_round_candidates: list[dict] = []
+    for cid, pool in testimonies_by_cluster.items():
+        if not pool:
+            continue
+        # Filter out duplicates when possible
+        clean_pool = [t for t in pool if not t.get("is_duplicate", False)]
+        effective_pool = clean_pool if clean_pool else pool
+        sorted_pool = sorted(effective_pool, key=_sortition_tiebreak_key)
+        first_round_candidates.append(sorted_pool[0])
+
+    ranked_round1 = sorted(first_round_candidates, key=_sortition_tiebreak_key)
+    for t in ranked_round1:
+        if len(selected_delegates) >= slot_count:
+            break
+        t["selected"] = True
+        selected_delegates.append(t)
+        t["selection_rank"] = len(selected_delegates)
+        t["reason_code"] = REASON_PRIMARY_CLUSTER_DELEGATE
+        cluster_info = cluster_index.get(t["cluster_id"], {})
+        label = cluster_info.get("label", f"Cluster {t['cluster_id']}")
+        t["rationale"] = f"Primary viewpoint delegate for {label} (Cluster {t['cluster_id']})"
+        cluster_delegate_tally[t["cluster_id"]] += 1
+
+    # PASS 2: Fill remaining slots with secondary depth (max 2 per cluster)
+    if len(selected_delegates) < slot_count:
+        second_round_pool: list[dict] = []
+        for cid, pool in testimonies_by_cluster.items():
+            if cluster_delegate_tally[cid] < MAX_DELEGATES_PER_CLUSTER:
+                for t in pool:
+                    if not t["selected"] and not t.get("is_duplicate", False):
+                        second_round_pool.append(t)
+
+        ranked_round2 = sorted(second_round_pool, key=_sortition_tiebreak_key)
+        for t in ranked_round2:
+            if len(selected_delegates) >= slot_count:
+                break
+            if cluster_delegate_tally[t["cluster_id"]] < MAX_DELEGATES_PER_CLUSTER:
+                t["selected"] = True
+                selected_delegates.append(t)
+                t["selection_rank"] = len(selected_delegates)
+                t["reason_code"] = REASON_SECONDARY_CLUSTER_DEPTH
+                cluster_info = cluster_index.get(t["cluster_id"], {})
+                label = cluster_info.get("label", f"Cluster {t['cluster_id']}")
+                t["rationale"] = f"Secondary depth delegate for {label} (Cluster {t['cluster_id']})"
+                cluster_delegate_tally[t["cluster_id"]] += 1
+
+    # PASS 3: Assign normalized reason codes to unselected testimonies
+    for t in testimonies:
+        if t["selected"]:
+            continue
+        if not t.get("eligible", True):
+            ex_reason = t.get("exclusion_reason")
+            if ex_reason == REASON_UNSELECTED_PROVENANCE_DISQUALIFIED:
+                t["reason_code"] = REASON_UNSELECTED_PROVENANCE_DISQUALIFIED
+                t["rationale"] = "Disqualified: source content digest mismatch with committed record"
+            elif ex_reason == REASON_UNSELECTED_SEMANTIC_DUPLICATE:
+                t["reason_code"] = REASON_UNSELECTED_SEMANTIC_DUPLICATE
+                t["rationale"] = f"Disqualified: verified semantic duplicate of {t.get('duplicate_of_id', 'earlier submission')}"
+            else:
+                t["reason_code"] = REASON_UNSELECTED_IRRELEVANT
+                t["rationale"] = "Testimony evaluated as out of scope or irrelevant to charter"
+        elif int(t.get("cluster_id", 0)) == 0:
+            t["reason_code"] = REASON_UNSELECTED_IRRELEVANT
+            t["rationale"] = "Testimony evaluated as out of scope or irrelevant to charter"
+        elif t.get("is_duplicate", False):
+            t["reason_code"] = REASON_UNSELECTED_SEMANTIC_DUPLICATE
+            t["rationale"] = f"Identified as near-duplicate of {t.get('duplicate_of_id', '')}"
+        elif cluster_delegate_tally.get(int(t.get("cluster_id", 0)), 0) >= MAX_DELEGATES_PER_CLUSTER:
+            t["reason_code"] = REASON_UNSELECTED_CLUSTER_CAP
+            t["rationale"] = f"Cluster {t['cluster_id']} reached maximum delegate capacity of {MAX_DELEGATES_PER_CLUSTER}"
+        elif len(selected_delegates) >= slot_count:
+            t["reason_code"] = REASON_UNSELECTED_SLOT_CAPACITY
+            t["rationale"] = "Unselected: docket slot capacity reached with higher-ranked representatives"
+        else:
+            t["reason_code"] = REASON_UNSELECTED_LOWER_RELEVANCE
+            t["rationale"] = "Unselected: lower relative relevance score or tie-break ranking"
+
+    return selected_delegates
