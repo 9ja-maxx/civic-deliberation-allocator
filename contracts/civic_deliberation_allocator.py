@@ -1,0 +1,174 @@
+# { "Depends": "py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6" }
+"""Civic Deliberation Allocator — Intelligent Contract for Citizen Assembly Sortition.
+
+Replaces centralized administrative gatekeeping in public inquiries and citizen hearings
+with trustless web evidence verification, multi-metric Equivalence Principle consensus,
+deterministic coverage-first sortition, and bonded citizen dispute arbitration.
+"""
+
+from genlayer import *
+
+from datetime import datetime, timezone
+import hashlib
+import json
+import typing
+
+
+# ==============================================================================
+# 1. Configuration & Policy Constraints
+# ==============================================================================
+
+MAX_TESTIMONIES: int = 12
+MIN_DELEGATE_SLOTS: int = 1
+MAX_DELEGATE_SLOTS: int = 6
+MIN_THEMATIC_CLUSTERS: int = 1
+MAX_THEMATIC_CLUSTERS: int = 6
+MAX_DELEGATES_PER_CLUSTER: int = 2
+
+# 6-State Formal Lifecycle
+STATE_ENROLLING: str = "ENROLLING"
+STATE_MANIFEST_LOCKED: str = "MANIFEST_LOCKED"
+STATE_THEMATIC_CONSENSUS: str = "THEMATIC_CONSENSUS"
+STATE_SORTITION_ALLOCATED: str = "SORTITION_ALLOCATED"
+STATE_CONTESTATION_OPEN: str = "CONTESTATION_OPEN"
+STATE_SOVEREIGN_RATIFIED: str = "SOVEREIGN_RATIFIED"
+STATE_ANNULLED_PRELOCK: str = "ANNULLED_PRELOCK"
+
+# Contestation / Dispute Categories
+CHALLENGE_PROVENANCE_MISMATCH: str = "PROVENANCE_MISMATCH"
+CHALLENGE_DUPLICATE_COLLUSION: str = "DUPLICATE_COLLUSION"
+
+# Dispute Verdict Statuses
+STATUS_PENDING: str = "PENDING"
+STATUS_ACCEPTED: str = "ACCEPTED"
+STATUS_REJECTED: str = "REJECTED"
+
+# Standardized Sortition Rationale Codes
+REASON_PRIMARY_CLUSTER_DELEGATE: str = "PRIMARY_CLUSTER_DELEGATE"
+REASON_SECONDARY_CLUSTER_DEPTH: str = "SECONDARY_CLUSTER_DEPTH"
+REASON_UNSELECTED_CLUSTER_CAP: str = "CLUSTER_CAP_REACHED"
+REASON_UNSELECTED_SLOT_CAPACITY: str = "SLOT_CAPACITY_LIMIT"
+REASON_UNSELECTED_LOWER_RELEVANCE: str = "LOWER_RELEVANCE_RANKING"
+REASON_UNSELECTED_SEMANTIC_DUPLICATE: str = "DUPLICATE_ASTROTURF"
+REASON_UNSELECTED_PROVENANCE_DISQUALIFIED: str = "PROVENANCE_DISQUALIFIED"
+REASON_UNSELECTED_IRRELEVANT: str = "OUT_OF_SCOPE_IRRELEVANT"
+
+
+# ==============================================================================
+# 2. Cryptographic Validation & Address Normalization Helpers
+# ==============================================================================
+
+def _canonicalize_address(addr: typing.Any) -> str:
+    """Normalize any address representation into a 42-char lowercase hex string."""
+    if hasattr(addr, "as_hex"):
+        return str(addr.as_hex).lower()
+    if isinstance(addr, str):
+        clean = addr.strip().lower()
+        return clean if clean.startswith("0x") else "0x" + clean
+    if isinstance(addr, int):
+        return "0x" + f"{addr:040x}"
+    if isinstance(addr, (bytes, bytearray)):
+        return "0x" + addr.hex().lower()
+    return str(addr).lower()
+
+
+def _is_valid_hex_address(addr: str) -> bool:
+    """Ensure address is an authentic 42-char 0x-prefixed hexadecimal string."""
+    if not isinstance(addr, str) or len(addr) != 42 or not addr.startswith("0x"):
+        return False
+    return all(c in "0123456789abcdefABCDEF" for c in addr[2:])
+
+
+def _resolve_transaction_caller() -> str:
+    """Obtain validated transaction sender from GenVM execution context. Fails closed."""
+    try:
+        caller = gl.message.sender_address
+    except Exception as err:
+        raise gl.vm.UserError(f"ERR_CALLER_UNAVAILABLE: Execution context sender unavailable: {err}")
+
+    normalized = _canonicalize_address(caller)
+    if not _is_valid_hex_address(normalized) or normalized == "0x0000000000000000000000000000000000000000":
+        raise gl.vm.UserError("ERR_INVALID_CALLER: Caller address is invalid, malformed, or zero address")
+    return normalized
+
+
+def _current_timestamp_utc() -> int:
+    """Deterministic transaction execution timestamp in UTC seconds."""
+    return int(datetime.now(timezone.utc).timestamp())
+
+
+def _has_forbidden_delimiters(val: str) -> bool:
+    """Reject pipe delimiters, CR, LF, tabs, and ASCII control characters."""
+    for char in val:
+        code = ord(char)
+        if char in ("|", "\r", "\n", "\t") or code < 32 or code == 127:
+            return True
+    return False
+
+
+def _validate_sha256_digest(digest: str) -> bool:
+    """Validate 64-character lowercase/uppercase hex SHA-256 digest without delimiters."""
+    if not isinstance(digest, str) or _has_forbidden_delimiters(digest):
+        return False
+    clean = digest.strip()
+    return len(clean) == 64 and clean == digest and all(c in "0123456789abcdefABCDEF" for c in clean)
+
+
+def _validate_http_url(url: str) -> bool:
+    """Verify that URL is an explicit public HTTP or HTTPS locator."""
+    if not isinstance(url, str) or not url or _has_forbidden_delimiters(url):
+        return False
+    if " " in url or url.strip() != url:
+        return False
+    return url.startswith("http://") or url.startswith("https://")
+
+
+def _validate_testimony_identifier(ident: str) -> bool:
+    """Validate testimony ID: 1-128 chars, no pipe or control chars, clean trim."""
+    if not isinstance(ident, str) or not ident or _has_forbidden_delimiters(ident):
+        return False
+    return 1 <= len(ident) <= 128 and ident.strip() == ident
+
+
+def _compute_enrollment_receipt(docket_id: int, testimony_id: str, url: str, digest: str, registrar: str) -> str:
+    """Cryptographically bind admitted record to docket, source, content digest, and registrar."""
+    payload = f"{docket_id}|{testimony_id}|{url}|{digest.lower()}|{registrar.lower()}"
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest().lower()
+
+
+def _format_manifest_line(index: int, testimony_id: str, url: str, digest: str) -> str:
+    """Construct a canonical pipe-delimited manifest record."""
+    return f"{index}|{testimony_id}|{url}|{digest.lower()}\n"
+
+
+def _build_canonical_manifest_string(testimonies: list[dict]) -> str:
+    """Assemble the exact canonical manifest string in registration sequence."""
+    lines = [
+        _format_manifest_line(i, str(t["testimony_id"]), str(t["url"]), str(t["digest"]).lower())
+        for i, t in enumerate(testimonies)
+    ]
+    return "".join(lines)
+
+
+def _compute_manifest_hash(testimonies: list[dict]) -> str:
+    """Generate SHA-256 hash of the canonical manifest string."""
+    manifest_data = _build_canonical_manifest_string(testimonies)
+    return hashlib.sha256(manifest_data.encode("utf-8")).hexdigest().lower()
+
+
+def _sortition_tiebreak_key(candidate: dict) -> tuple:
+    """Deterministic, bias-free candidate tie-breaker:
+    1. Highest relevance score first (-relevance_score)
+    2. Ascending SHA-256 digest lexicographically
+    3. Ascending unique testimony ID
+    """
+    return (
+        -int(candidate.get("relevance_score", 0)),
+        str(candidate.get("digest", "")).lower(),
+        str(candidate.get("testimony_id", "")),
+    )
+
+
+def _encode_json_compact(value: typing.Any) -> str:
+    """Deterministic JSON serialization with sorted keys and minimal whitespace."""
+    return json.dumps(value, sort_keys=True, separators=(",", ":"))
