@@ -1,10 +1,12 @@
 # Civic Deliberation Allocator
 
 [![GenLayer Studionet](https://img.shields.io/badge/GenLayer-Studionet%20(Chain%2061999)-amber.svg)](https://studio.genlayer.com)
+[![Deployed Contract](https://img.shields.io/badge/Studionet%20Contract-0x8c0747...60AA0-0ea5e9.svg)](https://explorer-studio.genlayer.com/address/0x8c0747c835Dc8692878EaCA5Dd652a5216D60AA0)
 [![GenVM Specification](https://img.shields.io/badge/GenVM-Dragon%20Consensus-emerald.svg)](https://genlayer.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Tests Passing](https://img.shields.io/badge/Tests-18%2F18%20Passed-brightgreen.svg)](tests/)
 
+> **Live Studionet Deployment:** [`0x8c0747c835Dc8692878EaCA5Dd652a5216D60AA0`](https://explorer-studio.genlayer.com/address/0x8c0747c835Dc8692878EaCA5Dd652a5216D60AA0)  
 > **A GenLayer Intelligent Contract and executive civic dashboard orchestrating verifiable sortition, non-deterministic thematic clustering, and cryptographic evidence arbitration for citizen assemblies.**
 
 ---
@@ -306,11 +308,9 @@ To deploy `CivicDeliberationAllocator` to **GenLayer Studionet**:
 2. Create a new contract file: `civic_deliberation_allocator.py`.
 3. Paste the contents of [`contracts/civic_deliberation_allocator.py`](contracts/civic_deliberation_allocator.py).
 4. Click **Deploy**. The constructor requires no parameters (`__init__()` initializes `docket_count = 0`).
-5. Copy the deployed contract address.
-6. In `frontend/src/config.ts`, update `DEFAULT_CONTRACT_ADDRESS` with your deployed address:
-   ```typescript
-   export const DEFAULT_CONTRACT_ADDRESS = '0xYourDeployedAddressHere';
-   ```
+5. Live Deployed Contract Instance:
+   - **Address:** [`0x8c0747c835Dc8692878EaCA5Dd652a5216D60AA0`](https://explorer-studio.genlayer.com/address/0x8c0747c835Dc8692878EaCA5Dd652a5216D60AA0)
+   - Pre-configured in `frontend/src/config.ts` as `DEFAULT_CONTRACT_ADDRESS`.
 
 ---
 

@@ -7,11 +7,11 @@ export const NETWORK_CONFIG = {
   chainName: 'GenLayer Studionet',
   rpcUrl: 'https://studio.genlayer.com/api',
   currencySymbol: 'GEN',
-  explorerUrl: 'https://studio.genlayer.com',
+  explorerUrl: 'https://explorer-studio.genlayer.com',
 };
 
-// Default deployed contract address (can be overridden in UI or via environment)
-export const DEFAULT_CONTRACT_ADDRESS = '0x5C80FE676E4B17B0d10b776a30138C08a3B588B8';
+// Default deployed contract address (live on Studionet)
+export const DEFAULT_CONTRACT_ADDRESS = '0x8c0747c835Dc8692878EaCA5Dd652a5216D60AA0';
 
 // Allowed EIP-6963 Wallet RDNS identifiers
 export const ALLOWED_WALLET_RDNS = [

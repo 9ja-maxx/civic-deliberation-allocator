@@ -3,6 +3,8 @@
 **Target Environment:** GenLayer Studionet (Chain ID 61999)  
 **Security Standard:** GenVM Dragon Consensus Specification v1.0  
 **Author:** 9ja_maxx (`9ja-maxx`)  
+**Deployed Contract:** [`0x8c0747c835Dc8692878EaCA5Dd652a5216D60AA0`](https://explorer-studio.genlayer.com/address/0x8c0747c835Dc8692878EaCA5Dd652a5216D60AA0)  
+**Studionet Explorer:** [https://explorer-studio.genlayer.com/address/0x8c0747c835Dc8692878EaCA5Dd652a5216D60AA0](https://explorer-studio.genlayer.com/address/0x8c0747c835Dc8692878EaCA5Dd652a5216D60AA0)  
 
 ---
 
