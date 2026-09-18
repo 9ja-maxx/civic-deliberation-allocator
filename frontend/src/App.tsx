@@ -20,12 +20,11 @@ import { TransactionDrawer, ActiveTransaction } from './components/TransactionDr
 
 export const App: React.FC = () => {
   const [contractAddress, setContractAddress] = useState<string>(DEFAULT_CONTRACT_ADDRESS);
-  const [isSimulation, setIsSimulation] = useState<boolean>(true);
   const [connectedAccount, setConnectedAccount] = useState<string | null>(null);
   const [activeProvider, setActiveProvider] = useState<any | null>(null);
 
   const [client, setClient] = useState<CivicContractClient>(() => {
-    return new CivicContractClient(DEFAULT_CONTRACT_ADDRESS, null, true);
+    return new CivicContractClient(DEFAULT_CONTRACT_ADDRESS, null);
   });
 
   const [docket, setDocket] = useState<DocketSummary | null>(null);
@@ -39,14 +38,25 @@ export const App: React.FC = () => {
   const [isContestationModalOpen, setIsContestationModalOpen] = useState<boolean>(false);
   const [activeTx, setActiveTx] = useState<ActiveTransaction | null>(null);
 
-  // Re-instantiate client whenever mode, address, or provider changes
+  // Re-instantiate client whenever address or provider changes
   useEffect(() => {
-    const newClient = new CivicContractClient(contractAddress, activeProvider, isSimulation);
+    const newClient = new CivicContractClient(contractAddress, activeProvider);
     setClient(newClient);
-  }, [contractAddress, activeProvider, isSimulation]);
+  }, [contractAddress, activeProvider]);
 
   const refreshState = useCallback(async () => {
     try {
+      const count = await client.getDocketCount();
+      if (count === 0) {
+        setDocket(null);
+        setTestimonies([]);
+        setClusters([]);
+        setDelegates([]);
+        setContestations([]);
+        setManifestExportText('');
+        return;
+      }
+
       const d = await client.getDocket(1);
       setDocket(d);
 
@@ -65,7 +75,7 @@ export const App: React.FC = () => {
       const mText = await client.getManifestExport(1);
       setManifestExportText(mText);
     } catch (err: any) {
-      console.error('Failed to refresh contract state:', err);
+      console.error('Failed to refresh on-chain state:', err);
     }
   }, [client]);
 
@@ -77,58 +87,60 @@ export const App: React.FC = () => {
   const handleConnectAccount = (account: string, provider: any) => {
     setConnectedAccount(account);
     setActiveProvider(provider);
-    setIsSimulation(false); // Switch to live mode when wallet connects
   };
 
   const handleDisconnectAccount = () => {
     setConnectedAccount(null);
     setActiveProvider(null);
-    setIsSimulation(true);
   };
 
-  // 1-Click Load Realistic Transit Assembly Testimonies
-  const handleLoadSampleTestimonies = async () => {
+  // Initialize Docket Action
+  const handleInitializeDocket = async () => {
+    if (!client || !connectedAccount) {
+      alert('Please connect your Web3 wallet (MetaMask or Studionet) to initialize the docket.');
+      return;
+    }
     setIsActionLoading(true);
     setActiveTx({
       hash: '',
-      action: 'Enrolling Citizen Testimonies',
+      action: 'Initializing Civic Docket #1',
       status: 'PENDING',
-      message: 'Registering 4 citizen testimonies with cryptographic SHA-256 receipts...',
+      message: 'Submitting initialize_docket transaction to GenLayer Studionet...',
     });
 
     try {
-      const sample = [
-        { id: 't-commuter-union', url: 'https://assembly.civic.gov/t/t1.txt', digest: '1111111111111111111111111111111111111111111111111111111111111111' },
-        { id: 't-active-mobility', url: 'https://assembly.civic.gov/t/t2.txt', digest: '2222222222222222222222222222222222222222222222222222222222222222' },
-        { id: 't-suburban-transit', url: 'https://assembly.civic.gov/t/t3.txt', digest: '3333333333333333333333333333333333333333333333333333333333333333' },
-        { id: 't-green-corridor', url: 'https://assembly.civic.gov/t/t4.txt', digest: '4444444444444444444444444444444444444444444444444444444444444444' },
-      ];
-
-      for (const item of sample) {
-        await client.enrollTestimony(1, item.id, item.url, item.digest);
-      }
-
-      await refreshState();
+      const now = Math.floor(Date.now() / 1000);
+      const txHash = await client.initializeDocket(
+        connectedAccount,
+        connectedAccount,
+        'https://assembly.civic.gov/charters/transit-2026.txt',
+        '4a6b25110d939626e259b3df9e63e1986c758bb8efb7a1ffb1548b8b9c8a77a9',
+        2,
+        now + 86400,
+        now + 172800
+      );
       setActiveTx({
-        hash: `0x${Date.now().toString(16)}`,
-        action: 'Testimonies Enrolled',
+        hash: txHash,
+        action: 'Docket #1 Initialized',
         status: 'SUCCESS',
-        message: 'Successfully enrolled 4 citizen submissions with immutable receipts.',
+        message: 'Civic Deliberation Assembly Docket #1 initialized on-chain!',
       });
+      await refreshState();
     } catch (err: any) {
       setActiveTx({
         hash: '',
-        action: 'Enrollment Error',
+        action: 'Initialization Failed',
         status: 'REVERTED',
-        message: err.message || 'Failed to enroll testimonies',
+        message: err.message,
       });
     } finally {
       setIsActionLoading(false);
     }
   };
 
-  // Stage Transitions
+  // Stage Transitions (100% Live On-Chain)
   const handleAdvanceStage = async (action: string) => {
+    if (!client) return;
     setIsActionLoading(true);
 
     try {
@@ -144,7 +156,7 @@ export const App: React.FC = () => {
           hash: txHash,
           action: 'Manifest Cryptographically Locked',
           status: 'SUCCESS',
-          message: 'Enrollment batch frozen. No submissions can be modified or injected.',
+          message: 'Enrollment batch frozen on-chain. No submissions can be modified or injected.',
         });
       } else if (action === 'CLUSTER') {
         setActiveTx({
@@ -158,7 +170,7 @@ export const App: React.FC = () => {
           hash: txHash,
           action: 'Thematic Consensus Achieved',
           status: 'SUCCESS',
-          message: 'Dragon consensus established 2 thematic policy perspectives without hallucination.',
+          message: 'Dragon consensus established thematic policy perspectives on-chain.',
         });
       } else if (action === 'ALLOCATE') {
         setActiveTx({
@@ -172,7 +184,7 @@ export const App: React.FC = () => {
           hash: txHash,
           action: 'Sortition Complete',
           status: 'SUCCESS',
-          message: 'Empanelled delegates selected ensuring 100% thematic perspective coverage.',
+          message: 'Empanelled delegates selected ensuring thematic perspective coverage on-chain.',
         });
       } else if (action === 'RATIFY') {
         setActiveTx({
@@ -186,7 +198,7 @@ export const App: React.FC = () => {
           hash: txHash,
           action: 'Sovereign Mandate Ratified',
           status: 'SUCCESS',
-          message: 'Assembly roll permanently ratified. Docket state is immutable.',
+          message: 'Assembly roll permanently ratified on GenLayer. Docket state is immutable.',
         });
       }
 
@@ -205,6 +217,7 @@ export const App: React.FC = () => {
 
   // Contestation Submissions
   const handleSubmitChallenge = async (type: ChallengeType, targets: string[]) => {
+    if (!client) return;
     setIsActionLoading(true);
     setActiveTx({
       hash: '',
@@ -237,6 +250,7 @@ export const App: React.FC = () => {
 
   // Resolve Contestation
   const handleResolveChallenge = async (challengeId: number) => {
+    if (!client) return;
     setIsActionLoading(true);
     setActiveTx({
       hash: '',
@@ -251,7 +265,7 @@ export const App: React.FC = () => {
         hash: txHash,
         action: 'Dispute Resolved',
         status: 'SUCCESS',
-        message: 'Arbitration upheld: tampered submission purged; assembly delegates dynamically re-balanced.',
+        message: 'Arbitration recorded on-chain.',
       });
       await refreshState();
     } catch (err: any) {
@@ -270,8 +284,6 @@ export const App: React.FC = () => {
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <Masthead
         contractAddress={contractAddress}
-        isSimulation={isSimulation}
-        onToggleSimulation={setIsSimulation}
         connectedAccount={connectedAccount}
         onConnectAccount={handleConnectAccount}
         onDisconnectAccount={handleDisconnectAccount}
@@ -285,6 +297,7 @@ export const App: React.FC = () => {
           onAdvanceStage={handleAdvanceStage}
           isActionLoading={isActionLoading}
           onOpenContestationModal={() => setIsContestationModalOpen(true)}
+          onInitializeDocket={handleInitializeDocket}
         />
 
         <SortitionTopologyMap
@@ -298,7 +311,6 @@ export const App: React.FC = () => {
 
         <TestimoniesTable
           testimonies={testimonies}
-          onEnrollSample={docket && docket.state === 'ENROLLING' ? handleLoadSampleTestimonies : undefined}
           isEnrolling={isActionLoading}
         />
 

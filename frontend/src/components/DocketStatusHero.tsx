@@ -7,6 +7,7 @@ interface DocketStatusHeroProps {
   onAdvanceStage: (action: string) => void;
   isActionLoading: boolean;
   onOpenContestationModal: () => void;
+  onInitializeDocket?: () => void;
 }
 
 export const DocketStatusHero: React.FC<DocketStatusHeroProps> = ({
@@ -14,11 +15,26 @@ export const DocketStatusHero: React.FC<DocketStatusHeroProps> = ({
   onAdvanceStage,
   isActionLoading,
   onOpenContestationModal,
+  onInitializeDocket,
 }) => {
   if (!docket) {
     return (
-      <div className="civic-card" style={{ padding: '2.5rem', textAlign: 'center' }}>
-        <p style={{ color: 'var(--color-text-secondary)' }}>Loading Civic Docket state...</p>
+      <div className="civic-card" style={{ padding: '2.5rem', textAlign: 'center', marginBottom: '1.5rem' }}>
+        <h3 style={{ fontSize: '1.25rem', color: '#fff', marginBottom: '0.5rem' }}>No Active Civic Docket Found on Studionet</h3>
+        <p style={{ color: 'var(--color-text-secondary)', marginBottom: '1.25rem', fontSize: '0.875rem' }}>
+          The deployed contract has no initialized docket record yet. Connect wallet to initialize Civic Docket #1 or run the live population script.
+        </p>
+        {onInitializeDocket && (
+          <button
+            className="btn-primary"
+            onClick={onInitializeDocket}
+            disabled={isActionLoading}
+            style={{ margin: '0 auto', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+          >
+            <ShieldCheck size={16} />
+            <span>Initialize Civic Deliberation Docket #1</span>
+          </button>
+        )}
       </div>
     );
   }
