@@ -374,3 +374,80 @@ class CivicDeliberationAllocator(gl.Contract):
 
         self._persist_docket(d_id, docket_state)
         return u256(d_id)
+
+
+    @gl.public.write
+    def enroll_testimony(
+        self,
+        docket_id: u256,
+        testimony_id: str,
+        url: str,
+        digest: str,
+    ) -> u256:
+        """Enroll an authenticated citizen testimony into an open deliberative docket batch."""
+        docket = self._retrieve_docket(int(docket_id))
+        if docket["state"] != STATE_ENROLLING:
+            raise gl.vm.UserError(f"ERR_INVALID_LIFECYCLE_STATE: Docket is in state {docket['state']}, expected ENROLLING")
+
+        now = _current_timestamp_utc()
+        if now >= docket["enrollment_deadline"]:
+            raise gl.vm.UserError(
+                f"ERR_ENROLLMENT_CLOSED: Timestamp ({now}) is at or past enrollment deadline ({docket['enrollment_deadline']})"
+            )
+
+        caller = _resolve_transaction_caller()
+        if caller != docket["admission_authority"]:
+            raise gl.vm.UserError(
+                f"ERR_UNAUTHORIZED_REGISTRATION: Caller {caller} is not the authorized admission authority ({docket['admission_authority']})"
+            )
+
+        if not _validate_testimony_identifier(testimony_id):
+            raise gl.vm.UserError("ERR_INVALID_TESTIMONY_ID: ID must be 1-128 chars without delimiters or control characters")
+        if not _validate_http_url(url):
+            raise gl.vm.UserError("ERR_INVALID_TESTIMONY_URL: URL must start with http:// or https:// without spaces or delimiters")
+        if not _validate_sha256_digest(digest):
+            raise gl.vm.UserError("ERR_INVALID_TESTIMONY_DIGEST: Digest must be 64-char hexadecimal SHA-256")
+
+        clean_id = testimony_id.strip()
+        clean_url = url.strip()
+        clean_digest = digest.strip().lower()
+
+        if len(docket["testimonies"]) >= MAX_TESTIMONIES:
+            raise gl.vm.UserError(f"ERR_DOCKET_CAPACITY_REACHED: Maximum {MAX_TESTIMONIES} testimonies permitted per docket")
+
+        # Exact deduplication checks
+        for existing in docket["testimonies"]:
+            if existing["testimony_id"] == clean_id:
+                raise gl.vm.UserError(f"ERR_DUPLICATE_ID: Testimony ID '{clean_id}' is already enrolled in this docket")
+            if existing["url"] == clean_url:
+                raise gl.vm.UserError(f"ERR_DUPLICATE_URL: Testimony URL '{clean_url}' is already enrolled in this docket")
+            if existing["digest"] == clean_digest:
+                raise gl.vm.UserError(f"ERR_DUPLICATE_DIGEST: Content digest '{clean_digest}' is already enrolled in this docket")
+
+        idx = len(docket["testimonies"])
+        receipt = _compute_enrollment_receipt(int(docket_id), clean_id, clean_url, clean_digest, caller)
+
+        record = {
+            "index": idx,
+            "testimony_id": clean_id,
+            "url": clean_url,
+            "digest": clean_digest,
+            "registrar": caller,
+            "admission_authority": docket["admission_authority"],
+            "enrollment_receipt": receipt,
+            "eligible": True,
+            "exclusion_reason": "",
+            "cluster_id": 0,
+            "cluster_label": "",
+            "relevance_score": 0,
+            "is_duplicate": False,
+            "duplicate_of_id": "",
+            "selected": False,
+            "selection_rank": 0,
+            "reason_code": "",
+            "rationale": "",
+        }
+
+        docket["testimonies"].append(record)
+        self._persist_docket(int(docket_id), docket)
+        return u256(idx)
