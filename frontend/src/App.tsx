@@ -111,10 +111,9 @@ export const App: React.FC = () => {
     try {
       const now = Math.floor(Date.now() / 1000);
       const txHash = await client.initializeDocket(
-        connectedAccount,
-        connectedAccount,
         'https://assembly.civic.gov/charters/transit-2026.txt',
         '4a6b25110d939626e259b3df9e63e1986c758bb8efb7a1ffb1548b8b9c8a77a9',
+        'f5e09a0e5533875bb352f6bd4be8d8ae3da11ce7b4ffe4007c17b55d6691989b',
         2,
         now + 86400,
         now + 172800

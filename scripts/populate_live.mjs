@@ -10,11 +10,9 @@
  *   GENLAYER_PRIVATE_KEY=<PRIVATE_KEY> node scripts/populate_live.mjs
  */
 
-import { createClient, createAccount } from 'genlayer-js';
+import { createClient, createAccount, generatePrivateKey, chains } from 'genlayer-js';
 
 const CONTRACT_ADDRESS = '0x8c0747c835Dc8692878EaCA5Dd652a5216D60AA0';
-const STUDIONET_RPC = 'https://studio.genlayer.com/api';
-
 const privateKey = process.argv[2] || process.env.GENLAYER_PRIVATE_KEY;
 
 if (!privateKey) {
@@ -23,124 +21,122 @@ if (!privateKey) {
   process.exit(1);
 }
 
-const studionet = {
-  id: 61999,
-  name: 'GenLayer Studionet',
-  rpcUrls: {
-    default: { http: [STUDIONET_RPC] },
-    public: { http: [STUDIONET_RPC] }
-  }
-};
-
 async function main() {
-  console.log('--- Initializing GenLayer Client ---');
-  const formattedKey = privateKey.startsWith('0x') ? privateKey : `0x${privateKey}`;
-  const account = createAccount(formattedKey);
-  console.log(`Using Account: ${account.address}`);
-  console.log(`Target Contract: ${CONTRACT_ADDRESS}`);
+  console.log('====================================================');
+  console.log('   CIVIC DELIBERATION ALLOCATOR - LIVE POPULATION   ');
+  console.log('====================================================\n');
 
-  const client = createClient({
-    chain: studionet,
-    account
+  const formattedKey = privateKey.startsWith('0x') ? privateKey : `0x${privateKey}`;
+  const masterAccount = createAccount(formattedKey);
+  console.log(`[Master Account] ${masterAccount.address}`);
+  console.log(`[Target Contract] ${CONTRACT_ADDRESS}`);
+
+  const masterClient = createClient({
+    chain: chains.studionet,
+    account: masterAccount,
   });
 
-  // Check current docket count
+  const bal = await masterClient.getBalance({ address: masterAccount.address });
+  console.log(`[Balance] ${(Number(bal) / 1e18).toFixed(4)} GEN\n`);
+
+  // Check if docket 1 exists
+  let docketExists = false;
   try {
-    const docketCount = await client.readContract({
-      address: CONTRACT_ADDRESS,
-      functionName: 'get_docket_count',
-      args: []
-    });
-    console.log(`Current On-Chain Docket Count: ${docketCount}`);
-
-    let targetDocketId = Number(docketCount);
-
-    if (targetDocketId === 0) {
-      console.log('\n[1/4] Initializing Docket #1 (Transit Expansion Citizen Assembly)...');
-      const now = Math.floor(Date.now() / 1000);
-      const initTx = await client.writeContract({
-        address: CONTRACT_ADDRESS,
-        functionName: 'initialize_docket',
-        args: [
-          account.address,
-          account.address,
-          'https://assembly.civic.gov/charters/transit-2026.txt',
-          '4a6b25110d939626e259b3df9e63e1986c758bb8efb7a1ffb1548b8b9c8a77a9',
-          2, // 2 delegate seats
-          now + 86400, // 24h enrollment deadline
-          now + 172800 // 48h contestation deadline
-        ]
-      });
-      console.log(`Init Tx Submitted: ${initTx}`);
-      console.log('Waiting for receipt...');
-      const initReceipt = await client.waitForTransactionReceipt({ hash: initTx });
-      console.log(`Docket #1 Initialized! Status: ${initReceipt.status}`);
-      targetDocketId = 1;
-    } else {
-      console.log(`Docket #1 already exists (Current state will be populated/inspected).`);
-    }
-
-    // Check existing testimonies
-    const existingTestimonies = await client.readContract({
-      address: CONTRACT_ADDRESS,
-      functionName: 'get_all_testimonies',
-      args: [targetDocketId]
-    });
-    console.log(`Existing Testimonies Count: ${existingTestimonies ? existingTestimonies.length : 0}`);
-
-    if (!existingTestimonies || existingTestimonies.length === 0) {
-      console.log('\n[2/4] Enrolling authentic citizen testimonies...');
-      const authenticTestimonies = [
-        {
-          id: 't-commuter-union',
-          url: 'https://assembly.civic.gov/t/t1.txt',
-          digest: '1111111111111111111111111111111111111111111111111111111111111111'
-        },
-        {
-          id: 't-active-mobility',
-          url: 'https://assembly.civic.gov/t/t2.txt',
-          digest: '2222222222222222222222222222222222222222222222222222222222222222'
-        },
-        {
-          id: 't-suburban-transit',
-          url: 'https://assembly.civic.gov/t/t3.txt',
-          digest: '3333333333333333333333333333333333333333333333333333333333333333'
-        },
-        {
-          id: 't-green-corridor',
-          url: 'https://assembly.civic.gov/t/t4.txt',
-          digest: '4444444444444444444444444444444444444444444444444444444444444444'
-        }
-      ];
-
-      for (const t of authenticTestimonies) {
-        console.log(`Enrolling testimony ${t.id}...`);
-        const tx = await client.writeContract({
-          address: CONTRACT_ADDRESS,
-          functionName: 'enroll_testimony',
-          args: [targetDocketId, t.id, t.url, t.digest]
-        });
-        console.log(`  Tx: ${tx}`);
-        await client.waitForTransactionReceipt({ hash: tx });
-      }
-      console.log('All 4 citizen testimonies successfully enrolled on-chain!');
-    }
-
-    console.log('\n[3/4] Manifest Verification & Status Summary:');
-    const docketSummary = await client.readContract({
+    const d = await masterClient.readContract({
       address: CONTRACT_ADDRESS,
       functionName: 'get_docket',
-      args: [targetDocketId]
+      args: [1],
     });
-    console.log('Docket State:', docketSummary.state);
-    console.log('Enrolled Testimonies:', docketSummary.testimony_count);
-    console.log('Manifest Hash:', docketSummary.expected_manifest_digest || docketSummary.computed_manifest_digest);
-
-    console.log('\n[SUCCESS] Live transactions populated successfully on GenLayer Studionet!');
-    console.log(`View live contract on explorer: https://explorer-studio.genlayer.com/address/${CONTRACT_ADDRESS}`);
-  } catch (err) {
-    console.error('Execution failed with error:', err);
+    if (d) {
+      docketExists = true;
+      console.log('Civic Docket #1 already exists on-chain:');
+      console.log(`  State: ${JSON.parse(d).state}`);
+      console.log(`  Testimonies: ${JSON.parse(d).testimony_count}`);
+    }
+  } catch {
+    docketExists = false;
   }
+
+  if (!docketExists) {
+    console.log('\n[1/3] Initializing Civic Deliberation Docket #1...');
+    const now = Math.floor(Date.now() / 1000);
+    const initTx = await masterClient.writeContract({
+      address: CONTRACT_ADDRESS,
+      functionName: 'initialize_docket',
+      args: [
+        'https://assembly.civic.gov/charters/transit-2026.txt',
+        '4a6b25110d939626e259b3df9e63e1986c758bb8efb7a1ffb1548b8b9c8a77a9',
+        'f5e09a0e5533875bb352f6bd4be8d8ae3da11ce7b4ffe4007c17b55d6691989b',
+        2, // 2 delegate seats
+        now + 86400,
+        now + 172800,
+      ],
+      value: 0n,
+    });
+    console.log(`Init Tx: ${initTx}`);
+    const receipt = await masterClient.waitForTransactionReceipt({ hash: initTx });
+    console.log(`Civic Docket #1 Initialized! Status: ${receipt.result_name}`);
+  }
+
+  // Check enrolled testimonies
+  const subs = await masterClient.readContract({
+    address: CONTRACT_ADDRESS,
+    functionName: 'get_all_testimonies',
+    args: [1],
+  });
+  const currentTestimonies = subs ? JSON.parse(subs) : [];
+  console.log(`\nCurrent Enrolled Testimonies: ${currentTestimonies.length}`);
+
+  if (currentTestimonies.length < 4) {
+    console.log('\n[2/3] Enrolling citizen testimonies...');
+    const candidates = [
+      {
+        id: 't-commuter-union',
+        url: 'https://assembly.civic.gov/t/t1.txt',
+        digest: '1111111111111111111111111111111111111111111111111111111111111111',
+      },
+      {
+        id: 't-active-mobility',
+        url: 'https://assembly.civic.gov/t/t2.txt',
+        digest: '2222222222222222222222222222222222222222222222222222222222222222',
+      },
+      {
+        id: 't-suburban-transit',
+        url: 'https://assembly.civic.gov/t/t3.txt',
+        digest: '3333333333333333333333333333333333333333333333333333333333333333',
+      },
+      {
+        id: 't-green-corridor',
+        url: 'https://assembly.civic.gov/t/t4.txt',
+        digest: '4444444444444444444444444444444444444444444444444444444444444444',
+      },
+    ];
+
+    const existingIds = new Set(currentTestimonies.map((t) => t.testimony_id));
+
+    for (const c of candidates) {
+      if (!existingIds.has(c.id)) {
+        console.log(`Enrolling ${c.id}...`);
+        const tx = await masterClient.writeContract({
+          address: CONTRACT_ADDRESS,
+          functionName: 'enroll_testimony',
+          args: [1, c.id, c.url, c.digest],
+          value: 0n,
+        });
+        console.log(`  Tx: ${tx}`);
+        await masterClient.waitForTransactionReceipt({ hash: tx });
+      }
+    }
+  }
+
+  console.log('\n[3/3] Verification:');
+  const summary = await masterClient.readContract({
+    address: CONTRACT_ADDRESS,
+    functionName: 'get_docket',
+    args: [1],
+  });
+  console.log('Live Docket Record:', JSON.parse(summary));
+  console.log(`\nView on GenLayer Explorer: https://explorer-studio.genlayer.com/address/${CONTRACT_ADDRESS}`);
 }
 
-main();
+main().catch(console.error);
