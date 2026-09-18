@@ -287,3 +287,90 @@ def _execute_sortition_algorithm(
             t["rationale"] = "Unselected: lower relative relevance score or tie-break ranking"
 
     return selected_delegates
+
+
+# ==============================================================================
+# 4. CivicDeliberationAllocator Intelligent Contract
+# ==============================================================================
+
+class CivicDeliberationAllocator(gl.Contract):
+    """GenLayer Intelligent Contract orchestrating transparent citizen assembly sortition."""
+
+    docket_count: u256
+    dockets: TreeMap[u256, str]
+
+    def __init__(self):
+        self.docket_count = u256(0)
+        self.dockets = TreeMap()
+
+    def _retrieve_docket(self, docket_id: int) -> dict:
+        """Load and deserialize docket state from persistent storage."""
+        key = u256(docket_id)
+        if key not in self.dockets:
+            raise gl.vm.UserError(f"ERR_DOCKET_NOT_FOUND: Civic docket {docket_id} does not exist")
+        return json.loads(self.dockets[key])
+
+    def _persist_docket(self, docket_id: int, docket: dict) -> None:
+        """Serialize and persist updated docket state."""
+        key = u256(docket_id)
+        self.dockets[key] = json.dumps(docket)
+
+    @gl.public.write
+    def initialize_docket(
+        self,
+        proposal_url: str,
+        proposal_digest: str,
+        expected_manifest_digest: str,
+        slot_count: u256,
+        enrollment_deadline: u256,
+        contestation_deadline: u256,
+    ) -> u256:
+        """Initialize a new citizen assembly deliberation docket in the ENROLLING state."""
+        if not _validate_http_url(proposal_url):
+            raise gl.vm.UserError("ERR_INVALID_PROPOSAL_URL: Proposal charter must be a valid public HTTP/HTTPS URL")
+        if not _validate_sha256_digest(proposal_digest):
+            raise gl.vm.UserError("ERR_INVALID_PROPOSAL_DIGEST: Proposal digest must be 64-char hexadecimal SHA-256")
+        if not _validate_sha256_digest(expected_manifest_digest):
+            raise gl.vm.UserError("ERR_INVALID_MANIFEST_DIGEST: Expected manifest digest must be 64-char hexadecimal SHA-256")
+        if not (MIN_DELEGATE_SLOTS <= int(slot_count) <= MAX_DELEGATE_SLOTS):
+            raise gl.vm.UserError(
+                f"ERR_INVALID_SLOT_COUNT: Delegate slot capacity must be between {MIN_DELEGATE_SLOTS} and {MAX_DELEGATE_SLOTS}"
+            )
+
+        now = _current_timestamp_utc()
+        if int(enrollment_deadline) <= now:
+            raise gl.vm.UserError(
+                f"ERR_PAST_DEADLINE: Enrollment deadline ({enrollment_deadline}) must be strictly in the future (> {now})"
+            )
+        if int(contestation_deadline) <= int(enrollment_deadline):
+            raise gl.vm.UserError(
+                f"ERR_INVALID_SEQUENCE: Contestation deadline ({contestation_deadline}) must succeed enrollment deadline ({enrollment_deadline})"
+            )
+
+        organizer = _resolve_transaction_caller()
+        self.docket_count = u256(int(self.docket_count) + 1)
+        d_id = int(self.docket_count)
+
+        docket_state = {
+            "id": d_id,
+            "organizer": organizer,
+            "admission_authority": organizer,
+            "proposal_url": proposal_url.strip(),
+            "proposal_digest": proposal_digest.strip().lower(),
+            "expected_manifest_digest": expected_manifest_digest.strip().lower(),
+            "computed_manifest_digest": "",
+            "slot_count": int(slot_count),
+            "enrollment_deadline": int(enrollment_deadline),
+            "contestation_deadline": int(contestation_deadline),
+            "state": STATE_ENROLLING,
+            "revision": 0,
+            "accepted_contestation_count": 0,
+            "testimonies": [],
+            "clusters": [],
+            "contestations": [],
+            "contestation_keys": [],
+            "annulment_reason": "",
+        }
+
+        self._persist_docket(d_id, docket_state)
+        return u256(d_id)
