@@ -824,3 +824,47 @@ class CivicDeliberationAllocator(gl.Contract):
             if e.get("is_irrelevant", False) or t["cluster_id"] == 0:
                 t["eligible"] = False
                 t["exclusion_reason"] = REASON_UNSELECTED_IRRELEVANT
+
+
+    @gl.public.write
+    def cluster_testimonies(self, docket_id: u256) -> str:
+        """Permissionless execution to derive consensus thematic clusters from locked testimonies."""
+        docket = self._retrieve_docket(int(docket_id))
+        if docket["state"] != STATE_MANIFEST_LOCKED:
+            raise gl.vm.UserError(f"ERR_INVALID_LIFECYCLE_STATE: Docket is in state {docket['state']}, expected MANIFEST_LOCKED")
+
+        self._derive_deliberative_clusters(docket)
+        docket["state"] = STATE_THEMATIC_CONSENSUS
+        self._persist_docket(int(docket_id), docket)
+
+        return _encode_json_compact({
+            "docket_id": int(docket_id),
+            "state": docket["state"],
+            "cluster_count": len(docket["clusters"]),
+            "clusters": docket["clusters"],
+        })
+
+    @gl.public.write
+    def allocate_sortition_delegates(self, docket_id: u256) -> str:
+        """Permissionless execution applying coverage-first sortition policy to select testimony delegates."""
+        docket = self._retrieve_docket(int(docket_id))
+        if docket["state"] != STATE_THEMATIC_CONSENSUS:
+            raise gl.vm.UserError(
+                f"ERR_INVALID_LIFECYCLE_STATE: Docket is in state {docket['state']}, expected THEMATIC_CONSENSUS"
+            )
+
+        delegates = _execute_sortition_algorithm(docket["slot_count"], docket["testimonies"], docket["clusters"])
+        docket["state"] = STATE_CONTESTATION_OPEN
+        self._persist_docket(int(docket_id), docket)
+
+        return _encode_json_compact([
+            {
+                "rank": d["selection_rank"],
+                "testimony_id": d["testimony_id"],
+                "cluster_id": d["cluster_id"],
+                "relevance_score": d["relevance_score"],
+                "reason_code": d["reason_code"],
+                "rationale": d["rationale"],
+            }
+            for d in delegates
+        ])
