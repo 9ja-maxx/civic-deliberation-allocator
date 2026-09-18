@@ -1,0 +1,6 @@
+TESTIMONY DRIFT SAMPLE (t-tampered-sample)
+Docket Mandate: Municipal Transit Equity 2026
+
+[TAMPERED CONTENT]: This file has been altered post-lock to demonstrate GenVM Dragon consensus
+provenance verification. When an evidence dispute is lodged, validators will re-hash this content,
+detect the mismatch against the precommitted SHA-256 digest, and reject this fraudulent testimony.

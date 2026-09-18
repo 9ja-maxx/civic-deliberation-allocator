@@ -1,0 +1,14 @@
+CITY OF CIVIC METROPOLITAN TRANSIT ASSEMBLY 2026
+OFFICIAL INQUIRY CHARTER & CITIZEN DELIBERATION MANDATE
+
+Mandate Authority: Municipal Civic Assembly Resolution 2026-04
+Scope: Public Consultation on Capital Transit Allocation & Bus Corridors
+
+The Citizen Deliberation Assembly is charged with formulating binding recommendations
+for the equitable expansion of regional transit. Specific questions for testimony include:
+1. Trade-offs between fixed light-rail infrastructure and rapid electric bus corridors.
+2. Direct connectivity to underserved peripheral wards and low-income residential hubs.
+3. Protected micro-mobility integration and pedestrian safety around transit hubs.
+4. Sustainable funding models balancing municipal bond issuance against passenger fares.
+
+All citizen submissions must be verified against their cryptographic SHA-256 hash.
