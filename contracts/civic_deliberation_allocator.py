@@ -868,3 +868,79 @@ class CivicDeliberationAllocator(gl.Contract):
             }
             for d in delegates
         ])
+
+
+    @gl.public.write
+    def open_contestation(
+        self,
+        docket_id: u256,
+        challenge_type: str,
+        target_ids_json: str,
+    ) -> u256:
+        """Submit a citizen challenge against testimony provenance or duplicate astroturfing."""
+        docket = self._retrieve_docket(int(docket_id))
+        if docket["state"] != STATE_CONTESTATION_OPEN:
+            raise gl.vm.UserError(
+                f"ERR_INVALID_LIFECYCLE_STATE: Docket is in state {docket['state']}, expected CONTESTATION_OPEN"
+            )
+
+        now = _current_timestamp_utc()
+        if now >= docket["contestation_deadline"]:
+            raise gl.vm.UserError(
+                f"ERR_CONTESTATION_CLOSED: Timestamp ({now}) is at or past contestation deadline ({docket['contestation_deadline']})"
+            )
+
+        if challenge_type not in (CHALLENGE_PROVENANCE_MISMATCH, CHALLENGE_DUPLICATE_COLLUSION):
+            raise gl.vm.UserError(
+                f"ERR_UNKNOWN_CHALLENGE_TYPE: Type must be '{CHALLENGE_PROVENANCE_MISMATCH}' or '{CHALLENGE_DUPLICATE_COLLUSION}'"
+            )
+
+        try:
+            target_ids = json.loads(target_ids_json)
+        except Exception:
+            raise gl.vm.UserError("ERR_MALFORMED_TARGETS_JSON: target_ids_json must be a valid JSON array")
+
+        if not isinstance(target_ids, list):
+            raise gl.vm.UserError("ERR_INVALID_TARGET_STRUCTURE: target_ids_json must deserialize to a list")
+
+        clean_targets = [str(t).strip() for t in target_ids if _validate_testimony_identifier(str(t).strip())]
+        if len(clean_targets) != len(target_ids):
+            raise gl.vm.UserError("ERR_INVALID_TARGET_ENTRIES: One or more target testimony identifiers are invalid")
+
+        if challenge_type == CHALLENGE_PROVENANCE_MISMATCH:
+            if len(clean_targets) != 1:
+                raise gl.vm.UserError("ERR_TARGET_COUNT: PROVENANCE_MISMATCH requires exactly 1 target testimony ID")
+        else:  # DUPLICATE_COLLUSION
+            if len(clean_targets) != 2:
+                raise gl.vm.UserError("ERR_TARGET_COUNT: DUPLICATE_COLLUSION requires exactly 2 distinct target testimony IDs")
+            if clean_targets[0] == clean_targets[1]:
+                raise gl.vm.UserError("ERR_IDENTICAL_TARGETS: DUPLICATE_COLLUSION targets must be distinct testimonies")
+
+        enrolled_ids = {t["testimony_id"] for t in docket["testimonies"]}
+        for tid in clean_targets:
+            if tid not in enrolled_ids:
+                raise gl.vm.UserError(f"ERR_TARGET_NOT_ENROLLED: Target testimony '{tid}' is not part of this docket")
+
+        # Replay and duplicate contestation defense
+        dedup_key = f"{challenge_type}:{','.join(sorted(clean_targets))}"
+        if dedup_key in docket["contestation_keys"]:
+            raise gl.vm.UserError("ERR_DUPLICATE_CONTESTATION: An identical contestation has already been lodged")
+
+        caller = _resolve_transaction_caller()
+        ch_id = len(docket["contestations"]) + 1
+
+        contestation = {
+            "id": ch_id,
+            "challenge_type": challenge_type,
+            "target_ids": clean_targets,
+            "challenger": caller,
+            "status": STATUS_PENDING,
+            "resolution_reason": "",
+            "resolved_at_revision": 0,
+        }
+
+        docket["contestations"].append(contestation)
+        docket["contestation_keys"].append(dedup_key)
+        self._persist_docket(int(docket_id), docket)
+
+        return u256(ch_id)
