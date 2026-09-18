@@ -238,14 +238,13 @@ class TestCivicDeliberationAllocator(unittest.TestCase):
 
     def test_ratify_docket_lifecycle(self):
         now = int(datetime.now(timezone.utc).timestamp())
-        # Docket with deadlines in the past (using mock warp or short offset)
-        d_id = self.allocator.initialize_docket(CHARTER_URL, CHARTER_DIGEST, "a" * 64, 1, now + 1, now + 2)
-        self.allocator.enroll_testimony(d_id, "t-1", "https://civic.org/t1", "1" * 64)
-        expected = compute_manifest_digest([{"testimony_id": "t-1", "url": "https://civic.org/t1", "digest": "1" * 64}])
+        t_body = "testimony text"
+        t_digest = hashlib.sha256(t_body.encode("utf-8")).hexdigest()
+        gl.nondet.web.set_url_content("https://civic.org/t1", t_body)
+        expected = compute_manifest_digest([{"testimony_id": "t-1", "url": "https://civic.org/t1", "digest": t_digest}])
 
-        # Re-initialize with matching digest
         d_id = self.allocator.initialize_docket(CHARTER_URL, CHARTER_DIGEST, expected, 1, now + 1, now + 2)
-        self.allocator.enroll_testimony(d_id, "t-1", "https://civic.org/t1", "1" * 64)
+        self.allocator.enroll_testimony(d_id, "t-1", "https://civic.org/t1", t_digest)
         self.allocator.commit_and_lock_manifest(d_id)
 
         mock_llm = {
@@ -253,7 +252,6 @@ class TestCivicDeliberationAllocator(unittest.TestCase):
             "evaluations": [{"testimony_id": "t-1", "cluster_id": 1, "relevance_score": 90, "is_duplicate": False, "duplicate_of_id": "", "is_irrelevant": False}],
         }
         gl.nondet.set_llm_handler(lambda p: json.dumps(mock_llm))
-        gl.nondet.web.set_url_content("https://civic.org/t1", "testimony text")
 
         self.allocator.cluster_testimonies(d_id)
         self.allocator.allocate_sortition_delegates(d_id)

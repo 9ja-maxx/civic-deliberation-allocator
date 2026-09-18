@@ -7,6 +7,7 @@ deterministic coverage-first sortition, and bonded citizen dispute arbitration.
 """
 
 from genlayer import *
+import genlayer as gl
 
 from datetime import datetime, timezone
 import hashlib
@@ -518,6 +519,7 @@ class CivicDeliberationAllocator(gl.Contract):
             for t in docket["testimonies"]
             if t.get("eligible", True)
         ]
+        active_ids = {t["testimony_id"] for t in active_testimonies}
         slot_count = int(docket["slot_count"])
 
         if not active_testimonies:
@@ -639,7 +641,7 @@ class CivicDeliberationAllocator(gl.Contract):
                 eval_by_id[tid] = e
 
             active_ids = [t["testimony_id"] for t in active_testimonies]
-            if set(eval_by_id.keys()) != set(active_ids):
+            if not set(active_ids).issubset(set(eval_by_id.keys())):
                 raise gl.vm.UserError("ERR_INCOMPLETE_EVALUATIONS: Model did not evaluate all active testimonies")
 
             normalized_evals = []
@@ -754,8 +756,15 @@ class CivicDeliberationAllocator(gl.Contract):
                 if len(val_clusters) != len(clusters):
                     return False
 
-                val_eval_index = {str(e.get("testimony_id", "")).strip(): e for e in val_evals if isinstance(e, dict)}
-                leader_eval_index = {e["testimony_id"]: e for e in evals}
+                val_eval_index = {
+                    str(e.get("testimony_id", "")).strip(): e
+                    for e in val_evals
+                    if isinstance(e, dict) and str(e.get("testimony_id", "")).strip() in active_ids
+                }
+                leader_eval_index = {e["testimony_id"]: e for e in evals if e["testimony_id"] in active_ids}
+
+                if not active_ids.issubset(set(val_eval_index.keys())):
+                    return False
 
                 def cluster_membership_partition(eval_map: dict, tid: str) -> tuple:
                     """Validate semantic equivalence partition without relying on arbitrary LLM cluster numbering."""
@@ -766,7 +775,8 @@ class CivicDeliberationAllocator(gl.Contract):
                     return tuple(sorted(
                         member_id
                         for member_id, member in eval_map.items()
-                        if not bool(member.get("is_irrelevant", False))
+                        if member_id in active_ids
+                        and not bool(member.get("is_irrelevant", False))
                         and int(member.get("cluster_id", 0)) == target_cid
                     ))
 
