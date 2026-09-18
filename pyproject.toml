@@ -1,0 +1,20 @@
+[project]
+name = "civic-deliberation-allocator"
+version = "0.1.0"
+description = "Decentralized Citizen Deliberative Assembly & Testimony Sortition Engine on GenLayer"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "genlayer-py>=0.16.3",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8.0.0",
+    "pytest-cov>=4.1.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
