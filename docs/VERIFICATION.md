@@ -10,7 +10,7 @@
 
 | Artifact | Relative Path | SHA-256 Digest |
 | :--- | :--- | :--- |
-| **Intelligent Contract** | `contracts/civic_deliberation_allocator.py` | `8964124b78ee14992145efc380fa9404e969eb46c1291ad0182f3d13ce8c1670` |
+| **Intelligent Contract** | `contracts/civic_deliberation_allocator.py` | `9a924fdf16d3efbafc1c33065b88f51299e5b3bbaed3930b50309bece7421c97` |
 | **System Specification** | `docs/SPECIFICATION.md` | Verified at `133a1df` |
 | **Manifest Tooling** | `scripts/testimony_manifest.py` | Verified at `fa28809` |
 | **Simulation Doubles** | `tests/conftest.py` | Verified at `2963a7a` |

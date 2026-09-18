@@ -104,5 +104,6 @@ if "genlayer" not in sys.modules:
     genlayer_mod.message = Message()
     genlayer_mod.public = PublicDecorators()
     genlayer_mod.nondet = Nondet()
+    genlayer_mod.gl = genlayer_mod
 
     sys.modules["genlayer"] = genlayer_mod
