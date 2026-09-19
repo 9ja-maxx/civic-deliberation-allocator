@@ -111,9 +111,9 @@ export const App: React.FC = () => {
     try {
       const now = Math.floor(Date.now() / 1000);
       const txHash = await client.initializeDocket(
-        'https://assembly.civic.gov/charters/transit-2026.txt',
-        '4a6b25110d939626e259b3df9e63e1986c758bb8efb7a1ffb1548b8b9c8a77a9',
-        'f5e09a0e5533875bb352f6bd4be8d8ae3da11ce7b4ffe4007c17b55d6691989b',
+        'https://raw.githubusercontent.com/9ja-maxx/civic-deliberation-allocator/main/frontend/public/fixtures/transit-charter-2026.txt',
+        '25e937cb2139d5f128cd7a323948a0b5c93054ea9c01f23eb43c70ee9e6dd7dc',
+        'b7d648bdd4e686363e672b05764b8ec5008d66e92515b266f6f53e417cc2791f',
         2,
         now + 86400,
         now + 172800

@@ -195,7 +195,7 @@ export const DocketStatusHero: React.FC<DocketStatusHeroProps> = ({
                 style={{ borderColor: 'var(--color-accent-rose)', color: '#fb7185' }}
               >
                 <AlertTriangle size={16} color="#fb7185" />
-                <span>Lodge Bonded Evidence Dispute</span>
+                <span>Lodge Evidence Dispute</span>
               </button>
 
               <button

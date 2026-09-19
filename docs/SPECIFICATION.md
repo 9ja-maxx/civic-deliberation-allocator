@@ -23,15 +23,14 @@ To overcome the vulnerability where an organizer omits opposing viewpoints befor
 3. The organizer must commit an `expected_manifest_digest` before enrollment begins. At lock time, the contract verifies exact parity between the accumulated canonical manifest and the expected digest. If an organizer attempts to silently omit or modify testimonies, the manifest digest will fail to match, preventing the docket from locking.
 4. If an admission batch is tainted, an explicit recovery path (`annul_docket`) allows cancelling the docket before lock, requiring a new transparent manifest.
 
-### B. Bonded Contestation & Anti-Griefing Economics
-Prior prototypes suffered from free, unbonded dispute submissions where griefers could spam disputes without consequence. Civic Deliberation Allocator introduces **Bonded Contestation**:
+### B. Evidentiary Contestation & Integrity Checks
+Civic Deliberation Allocator provides robust on-chain dispute arbitration:
 - Any participant can dispute a testimony during the contestation window by specifying:
   - `CONTESTATION_PROVENANCE`: Source URL content digest no longer matches the committed SHA-256 hash.
   - `CONTESTATION_DUPLICATE`: Two distinct testimonies represent semantic duplicates or astroturfed template spam.
-- Challengers post an economic pledge/stake.
-- GenLayer validators adjudicate the dispute via consensus:
-  - If **ACCEPTED**: The offending testimony is disqualified (`eligible = False`), docket revision increments, the challenger is marked valid, and the contract re-clusters and re-sorts remaining testimonies.
-  - If **REJECTED**: The challenge is dismissed and the bond is retained by the docket treasury, providing strong economic deterrence against dispute jamming.
+- GenLayer validators adjudicate the dispute via Dragon consensus:
+  - If **ACCEPTED**: The offending testimony is disqualified (`eligible = False`), docket revision increments, and the contract re-clusters and re-sorts remaining testimonies.
+  - If **REJECTED**: The challenge is dismissed, maintaining the empanelled delegate distribution.
 
 ---
 

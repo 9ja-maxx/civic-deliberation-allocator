@@ -4,7 +4,7 @@ from genlayer import *
 # Civic Deliberation Allocator — Intelligent Contract for Citizen Assembly Sortition.
 # Replaces centralized administrative gatekeeping in public inquiries and citizen hearings
 # with trustless web evidence verification, multi-metric Equivalence Principle consensus,
-# deterministic coverage-first sortition, and bonded citizen dispute arbitration.
+# deterministic coverage-first sortition, and evidentiary citizen dispute arbitration.
 
 from datetime import datetime, timezone
 import hashlib

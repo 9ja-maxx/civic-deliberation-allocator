@@ -64,9 +64,9 @@ async function main() {
       address: CONTRACT_ADDRESS,
       functionName: 'initialize_docket',
       args: [
-        'https://assembly.civic.gov/charters/transit-2026.txt',
-        '4a6b25110d939626e259b3df9e63e1986c758bb8efb7a1ffb1548b8b9c8a77a9',
-        'f5e09a0e5533875bb352f6bd4be8d8ae3da11ce7b4ffe4007c17b55d6691989b',
+        'https://raw.githubusercontent.com/9ja-maxx/civic-deliberation-allocator/main/frontend/public/fixtures/transit-charter-2026.txt',
+        '25e937cb2139d5f128cd7a323948a0b5c93054ea9c01f23eb43c70ee9e6dd7dc',
+        'b7d648bdd4e686363e672b05764b8ec5008d66e92515b266f6f53e417cc2791f',
         2, // 2 delegate seats
         now + 86400,
         now + 172800,
@@ -92,23 +92,23 @@ async function main() {
     const candidates = [
       {
         id: 't-commuter-union',
-        url: 'https://assembly.civic.gov/t/t1.txt',
-        digest: '1111111111111111111111111111111111111111111111111111111111111111',
+        url: 'https://raw.githubusercontent.com/9ja-maxx/civic-deliberation-allocator/main/frontend/public/fixtures/t1-commuter-union.txt',
+        digest: 'b5485afe74ffcb941b79ea1a4a3b59a6e24ba1274957ec83ce6b21c9864b5ffe',
       },
       {
         id: 't-active-mobility',
-        url: 'https://assembly.civic.gov/t/t2.txt',
-        digest: '2222222222222222222222222222222222222222222222222222222222222222',
+        url: 'https://raw.githubusercontent.com/9ja-maxx/civic-deliberation-allocator/main/frontend/public/fixtures/t2-active-mobility.txt',
+        digest: '186e0cd86faf4224f81ac771bacb08dec5197378a28b58edb82a1006da296a75',
       },
       {
         id: 't-suburban-transit',
-        url: 'https://assembly.civic.gov/t/t3.txt',
-        digest: '3333333333333333333333333333333333333333333333333333333333333333',
+        url: 'https://raw.githubusercontent.com/9ja-maxx/civic-deliberation-allocator/main/frontend/public/fixtures/t3-suburban-transit.txt',
+        digest: '89581e1abc9bd02fa477aca4f221ffdf6bec6e773d2c2414d0002229651957fa',
       },
       {
         id: 't-green-corridor',
-        url: 'https://assembly.civic.gov/t/t4.txt',
-        digest: '4444444444444444444444444444444444444444444444444444444444444444',
+        url: 'https://raw.githubusercontent.com/9ja-maxx/civic-deliberation-allocator/main/frontend/public/fixtures/t4-green-corridor.txt',
+        digest: 'a2a66059e12b52c8160e43585e160324d0d307d73c6c84979120a2238eb0a2e6',
       },
     ];
 

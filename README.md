@@ -88,9 +88,9 @@ The following diagram illustrates how GenLayer's **Dragon Consensus** executes n
                                      +-----------------+------------------+
                                                        |
                                                        v
-                                     +------------------------------------+
-                                     |    5. BONDED CONTESTATION WINDOW   |
-                                     |------------------------------------|
+                                      +------------------------------------+
+                                      |   5. EVIDENCE CONTESTATION WINDOW  |
+                                      |------------------------------------|
                                      | Observers challenge provenance     |
                                      | drift or duplicate astroturfing.   |
                                      | Consensus arbitration purges bad   |
@@ -295,7 +295,7 @@ Open `http://localhost:5173` in your browser.
 3. **Seal Manifest:** Click `Cryptographically Seal Manifest` to freeze the batch.
 4. **Run Clustering:** Click `Run Dragon Consensus Clustering` to partition submissions into policy perspectives. Observe the **Sortition Topology Map** update dynamically.
 5. **Allocate Sortition:** Click `Allocate Sortition Delegates` to empanel delegates across both perspectives. Inspect the **Sortition Ledger**.
-6. **Simulate Evidence Contestation:** Click `Lodge Bonded Evidence Dispute` and challenge `t-commuter-union` for provenance drift. Click `Trigger Arbitration` to see Dragon consensus purge the tampered entry and re-allocate the seat.
+6. **Simulate Evidence Contestation:** Click `Lodge Evidence Dispute` and challenge `t-commuter-union` for provenance drift. Click `Trigger Arbitration` to see Dragon consensus purge the tampered entry and re-allocate the seat.
 7. **Export Audit Bundle:** Click `Download Audit Bundle (JSON)` to export the complete cryptographic release proof.
 
 ---
