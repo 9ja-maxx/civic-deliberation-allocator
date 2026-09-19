@@ -25,3 +25,4 @@ build/
 # GenLayer Local
 data/
 output/
+node_modules

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Civic Deliberation Allocator - Live Studionet Docket Population Script
- * Contract: 0x8c0747c835Dc8692878EaCA5Dd652a5216D60AA0
+ * Contract: 0x04768A352f0ac52dCEa8c9F9AEBc57020d5248B2
  * Chain: GenLayer Studionet (61999)
  *
  * Usage:
@@ -12,7 +12,7 @@
 
 import { createClient, createAccount, generatePrivateKey, chains } from 'genlayer-js';
 
-const CONTRACT_ADDRESS = '0x8c0747c835Dc8692878EaCA5Dd652a5216D60AA0';
+const CONTRACT_ADDRESS = '0x04768A352f0ac52dCEa8c9F9AEBc57020d5248B2';
 const privateKey = process.argv[2] || process.env.GENLAYER_PRIVATE_KEY;
 
 if (!privateKey) {
